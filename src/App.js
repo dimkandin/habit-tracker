@@ -1197,7 +1197,12 @@ function App() {
               {habits.map(habit => {
                 const stats = getHabitStats(habit);
                 return (
-                  <div key={habit.id} className="habit-card compact" style={{ borderLeft: `3px solid ${habit.color}` }}>
+                  <div 
+                    key={habit.id} 
+                    className="habit-card compact" 
+                    style={{ borderLeft: `3px solid ${habit.color}` }}
+                    title={`Серия: ${stats.streak} | Выполнено: ${stats.completionRate}% | Всего: ${stats.totalCompletions}`}
+                  >
                     <div className="habit-header compact">
                       <div className="habit-info">
                         <h3 className="habit-name">{habit.name}</h3>
@@ -1218,20 +1223,7 @@ function App() {
                       </button>
                     </div>
                     
-                    <div className="habit-stats-mini">
-                      <div className="stat-item">
-                        <TrendingUp size={14} />
-                        <span>{stats.streak}</span>
-                      </div>
-                      <div className="stat-item">
-                        <Target size={14} />
-                        <span>{stats.completionRate}%</span>
-                      </div>
-                      <div className="stat-item">
-                        <Check size={14} />
-                        <span>{stats.totalCompletions}</span>
-                      </div>
-                    </div>
+                    {/* Статистика убрана для компактности */}
                     
                     <div className="habit-days compact">
                       {weekDays.map(day => {

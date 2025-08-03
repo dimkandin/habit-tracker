@@ -618,9 +618,9 @@
 
 /* Компактная сетка привычек */
 .habits-grid.compact {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .habit-card.compact {
@@ -630,36 +630,46 @@
   box-shadow: var(--shadow);
   transition: all 0.2s ease;
   border-left: 3px solid #667eea;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 60px;
 }
 
 .habit-card.compact:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .habit-header.compact {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .habit-info {
   flex: 1;
+  min-width: 0;
 }
 
 .habit-name {
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.125rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .habit-meta {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.7rem;
+  gap: 0.25rem;
+  font-size: 0.65rem;
   color: var(--text-secondary);
+  flex-wrap: wrap;
 }
 
 .habit-category {
@@ -719,22 +729,23 @@
 }
 
 .habit-days.compact {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 0.125rem;
+  flex-shrink: 0;
 }
 
 .day-cell.compact {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  border-radius: 4px;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border-radius: 3px;
   transition: all 0.2s ease;
   background: rgba(102, 126, 234, 0.05);
   border: 1px solid rgba(102, 126, 234, 0.1);
+  min-width: 28px;
+  min-height: 32px;
 }
 
 .day-cell.compact.today {
@@ -756,21 +767,21 @@
 }
 
 .day-name {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
 }
 
 .day-date {
-  font-size: 0.75rem;
+  font-size: 0.6rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .completion-button.compact {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -780,7 +791,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  font-size: 0.6rem;
+  font-size: 0.5rem;
 }
 
 .completion-button.compact:hover {
@@ -811,13 +822,13 @@
 
 .quantity-input {
   width: 100%;
-  max-width: 40px;
-  height: 24px;
+  max-width: 32px;
+  height: 20px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   text-align: center;
   padding: 0.125rem;
   transition: all 0.2s ease;
@@ -845,9 +856,9 @@
 
 .mood-button {
   width: 100%;
-  height: 20px;
+  height: 16px;
   border: 1px solid var(--border-color);
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
@@ -855,7 +866,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  font-size: 0.8rem;
+  font-size: 0.6rem;
   padding: 0;
 }
 
