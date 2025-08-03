@@ -128,4 +128,4 @@ habit/
 
 ## Лицензия
 
-MIT 
+MIT # habit-tracker
