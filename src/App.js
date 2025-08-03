@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { format, startOfWeek, addDays, isSameDay, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap } from 'lucide-react';
+import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap, FileText, Database } from 'lucide-react';
 import './App.css';
 
 function App() {
@@ -12,6 +12,7 @@ function App() {
   const [newHabit, setNewHabit] = useState('');
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [habitType, setHabitType] = useState('daily');
@@ -22,6 +23,9 @@ function App() {
   const [reminderTime, setReminderTime] = useState('09:00');
   const [darkMode, setDarkMode] = useState(false);
   const [compactView, setCompactView] = useState(true);
+  const [importSource, setImportSource] = useState('custom');
+  const [importData, setImportData] = useState('');
+  const [importStatus, setImportStatus] = useState('');
 
   // Сохранение привычек в localStorage
   useEffect(() => {
@@ -267,6 +271,211 @@ function App() {
     }
   };
 
+  // Импорт из uHabits
+  const importFromUHabits = (data) => {
+    try {
+      const uhabitsData = JSON.parse(data);
+      const importedHabits = [];
+      
+      if (uhabitsData.habits) {
+        uhabitsData.habits.forEach(uhabit => {
+          const habit = {
+            id: Date.now() + Math.random(),
+            name: uhabit.name || 'Импортированная привычка',
+            type: 'daily',
+            category: 'binary',
+            color: habitColors[Math.floor(Math.random() * habitColors.length)],
+            target: 1,
+            unit: '',
+            reminderTime: '09:00',
+            completed: {},
+            values: {},
+            mood: {},
+            createdAt: new Date().toISOString(),
+            streak: 0,
+            bestStreak: 0,
+            totalCompletions: 0
+          };
+
+          // Конвертируем данные uHabits
+          if (uhabit.entries) {
+            uhabit.entries.forEach(entry => {
+              const dateKey = format(parseISO(entry.date), 'yyyy-MM-dd');
+              if (entry.value > 0) {
+                habit.completed[dateKey] = true;
+              }
+            });
+          }
+
+          habit.totalCompletions = Object.keys(habit.completed).length;
+          importedHabits.push(habit);
+        });
+      }
+
+      setHabits([...habits, ...importedHabits]);
+      setImportStatus(`Импортировано ${importedHabits.length} привычек из uHabits`);
+      return true;
+    } catch (error) {
+      setImportStatus('Ошибка при импорте из uHabits');
+      return false;
+    }
+  };
+
+  // Импорт из Loop Habit Tracker
+  const importFromLoopHabit = (data) => {
+    try {
+      const loopData = JSON.parse(data);
+      const importedHabits = [];
+      
+      if (loopData.habits) {
+        loopData.habits.forEach(loopHabit => {
+          const habit = {
+            id: Date.now() + Math.random(),
+            name: loopHabit.name || 'Импортированная привычка',
+            type: 'daily',
+            category: 'binary',
+            color: habitColors[Math.floor(Math.random() * habitColors.length)],
+            target: 1,
+            unit: '',
+            reminderTime: '09:00',
+            completed: {},
+            values: {},
+            mood: {},
+            createdAt: new Date().toISOString(),
+            streak: 0,
+            bestStreak: 0,
+            totalCompletions: 0
+          };
+
+          // Конвертируем данные Loop Habit Tracker
+          if (loopHabit.repetitions) {
+            loopHabit.repetitions.forEach(rep => {
+              const dateKey = format(parseISO(rep.timestamp), 'yyyy-MM-dd');
+              habit.completed[dateKey] = true;
+            });
+          }
+
+          habit.totalCompletions = Object.keys(habit.completed).length;
+          importedHabits.push(habit);
+        });
+      }
+
+      setHabits([...habits, ...importedHabits]);
+      setImportStatus(`Импортировано ${importedHabits.length} привычек из Loop Habit Tracker`);
+      return true;
+    } catch (error) {
+      setImportStatus('Ошибка при импорте из Loop Habit Tracker');
+      return false;
+    }
+  };
+
+  // Импорт из CSV
+  const importFromCSV = (data) => {
+    try {
+      const lines = data.split('\n');
+      const importedHabits = [];
+      const habitMap = new Map();
+
+      // Парсим CSV
+      lines.forEach((line, index) => {
+        if (index === 0) return; // Пропускаем заголовок
+        
+        const columns = line.split(',');
+        if (columns.length >= 3) {
+          const habitName = columns[0].trim();
+          const date = columns[1].trim();
+          const value = columns[2].trim();
+
+          if (!habitMap.has(habitName)) {
+            const habit = {
+              id: Date.now() + Math.random(),
+              name: habitName,
+              type: 'daily',
+              category: 'binary',
+              color: habitColors[Math.floor(Math.random() * habitColors.length)],
+              target: 1,
+              unit: '',
+              reminderTime: '09:00',
+              completed: {},
+              values: {},
+              mood: {},
+              createdAt: new Date().toISOString(),
+              streak: 0,
+              bestStreak: 0,
+              totalCompletions: 0
+            };
+            habitMap.set(habitName, habit);
+          }
+
+          const habit = habitMap.get(habitName);
+          const dateKey = format(parseISO(date), 'yyyy-MM-dd');
+          
+          if (value === 'true' || value === '1' || value === 'yes') {
+            habit.completed[dateKey] = true;
+          }
+        }
+      });
+
+      // Добавляем привычки
+      habitMap.forEach(habit => {
+        habit.totalCompletions = Object.keys(habit.completed).length;
+        importedHabits.push(habit);
+      });
+
+      setHabits([...habits, ...importedHabits]);
+      setImportStatus(`Импортировано ${importedHabits.length} привычек из CSV`);
+      return true;
+    } catch (error) {
+      setImportStatus('Ошибка при импорте из CSV');
+      return false;
+    }
+  };
+
+  // Обработка импорта
+  const handleImport = () => {
+    setImportStatus('');
+    
+    if (!importData.trim()) {
+      setImportStatus('Введите данные для импорта');
+      return;
+    }
+
+    let success = false;
+
+    switch (importSource) {
+      case 'uhabits':
+        success = importFromUHabits(importData);
+        break;
+      case 'loop':
+        success = importFromLoopHabit(importData);
+        break;
+      case 'csv':
+        success = importFromCSV(importData);
+        break;
+      case 'custom':
+        try {
+          const customData = JSON.parse(importData);
+          if (customData.habits) {
+            setHabits([...habits, ...customData.habits]);
+            setImportStatus(`Импортировано ${customData.habits.length} привычек`);
+            success = true;
+          } else {
+            setImportStatus('Неверный формат данных');
+          }
+        } catch (error) {
+          setImportStatus('Ошибка при парсинге JSON');
+        }
+        break;
+      default:
+        setImportStatus('Выберите источник данных');
+    }
+
+    if (success) {
+      setImportData('');
+      setTimeout(() => setShowImportModal(false), 2000);
+    }
+  };
+
   // Экспорт данных
   const exportData = () => {
     const data = {
@@ -282,8 +491,8 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Импорт данных
-  const importData = (event) => {
+  // Импорт данных из файла
+  const importDataFromFile = (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -292,9 +501,10 @@ function App() {
           const data = JSON.parse(e.target.result);
           if (data.habits) {
             setHabits(data.habits);
+            setImportStatus(`Импортировано ${data.habits.length} привычек из файла`);
           }
         } catch (error) {
-          alert('Ошибка при импорте файла');
+          setImportStatus('Ошибка при импорте файла');
         }
       };
       reader.readAsText(file);
@@ -350,6 +560,9 @@ function App() {
             <button onClick={() => setShowStats(!showStats)} className="header-button">
               <BarChart3 size={18} />
             </button>
+            <button onClick={() => setShowImportModal(true)} className="header-button">
+              <Database size={18} />
+            </button>
             <button onClick={exportData} className="header-button">
               <Download size={18} />
             </button>
@@ -358,7 +571,7 @@ function App() {
               <input
                 type="file"
                 accept=".json"
-                onChange={importData}
+                onChange={importDataFromFile}
                 style={{ display: 'none' }}
               />
             </label>
@@ -475,6 +688,66 @@ function App() {
                   </button>
                   <button onClick={addHabit} className="add-button">
                     Добавить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно импорта */}
+        {showImportModal && (
+          <div className="modal-overlay" onClick={() => setShowImportModal(false)}>
+            <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+              <h2>Импорт данных</h2>
+              <div className="modal-form">
+                <div className="form-group">
+                  <label>Источник данных</label>
+                  <select 
+                    value={importSource} 
+                    onChange={(e) => setImportSource(e.target.value)}
+                    className="habit-select"
+                  >
+                    <option value="custom">Собственный JSON</option>
+                    <option value="uhabits">uHabits</option>
+                    <option value="loop">Loop Habit Tracker</option>
+                    <option value="csv">CSV файл</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Данные для импорта</label>
+                  <textarea
+                    value={importData}
+                    onChange={(e) => setImportData(e.target.value)}
+                    placeholder="Вставьте данные для импорта..."
+                    className="import-textarea"
+                    rows={10}
+                  />
+                </div>
+
+                {importStatus && (
+                  <div className={`import-status ${importStatus.includes('Ошибка') ? 'error' : 'success'}`}>
+                    {importStatus}
+                  </div>
+                )}
+
+                <div className="import-instructions">
+                  <h4>Инструкции по импорту:</h4>
+                  <ul>
+                    <li><strong>uHabits:</strong> Экспортируйте данные из uHabits в JSON формате</li>
+                    <li><strong>Loop Habit Tracker:</strong> Используйте экспорт из Loop Habit Tracker</li>
+                    <li><strong>CSV:</strong> Формат: привычка,дата,значение (заголовок обязателен)</li>
+                    <li><strong>JSON:</strong> Собственный формат с массивом habits</li>
+                  </ul>
+                </div>
+
+                <div className="modal-actions">
+                  <button onClick={() => setShowImportModal(false)} className="cancel-button">
+                    Отмена
+                  </button>
+                  <button onClick={handleImport} className="add-button">
+                    Импортировать
                   </button>
                 </div>
               </div>
