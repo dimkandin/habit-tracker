@@ -26,6 +26,86 @@ function App() {
   const [importSource, setImportSource] = useState('custom');
   const [importData, setImportData] = useState('');
   const [importStatus, setImportStatus] = useState('');
+  const [showStorageInfo, setShowStorageInfo] = useState(false);
+  const [dataLoadStatus, setDataLoadStatus] = useState('');
+
+  // Автоматическая загрузка данных из файлов
+  const loadDefaultData = async () => {
+    try {
+      // Проверяем, загружены ли уже данные
+      const dataLoaded = localStorage.getItem('defaultDataLoaded');
+      if (dataLoaded === 'true') {
+        setDataLoadStatus('Данные уже загружены');
+        return;
+      }
+
+      setDataLoadStatus('Загрузка данных...');
+
+      // Загружаем данные из файлов
+      const daylioResponse = await fetch('/data/daylio_export_2025_08_03.csv');
+      const habitTrackerResponse = await fetch('/data/20230208_20250803_Habit.csv');
+      const wayOfLifeResponse = await fetch('/data/Way of Life (03.08.2025).csv');
+
+      if (daylioResponse.ok && habitTrackerResponse.ok && wayOfLifeResponse.ok) {
+        const daylioData = await daylioResponse.text();
+        const habitTrackerData = await habitTrackerResponse.text();
+        const wayOfLifeData = await wayOfLifeResponse.text();
+
+        // Импортируем данные
+        const daylioSuccess = importFromDaylio(daylioData);
+        const habitTrackerSuccess = importFromHabitTracker(habitTrackerData);
+        const wayOfLifeSuccess = importFromWayOfLife(wayOfLifeData);
+
+        if (daylioSuccess && habitTrackerSuccess && wayOfLifeSuccess) {
+          localStorage.setItem('defaultDataLoaded', 'true');
+          setDataLoadStatus('✅ Данные успешно загружены');
+          console.log('✅ Данные успешно загружены');
+        } else {
+          setDataLoadStatus('Ошибка при импорте данных');
+        }
+      } else {
+        setDataLoadStatus('Файлы данных не найдены');
+      }
+    } catch (error) {
+      setDataLoadStatus('Данные не найдены, можно импортировать вручную');
+      console.log('Данные не найдены, можно импортировать вручную');
+    }
+  };
+
+  // Получение информации о хранении
+  const getStorageInfo = () => {
+    const habitsSize = new Blob([JSON.stringify(habits)]).size;
+    const totalSize = habitsSize + (localStorage.getItem('darkMode')?.length || 0);
+    
+    return {
+      habitsCount: habits.length,
+      totalSize: (totalSize / 1024).toFixed(2), // в КБ
+      storageUsed: (totalSize / (5 * 1024 * 1024) * 100).toFixed(2), // процент от 5МБ
+      lastSync: localStorage.getItem('lastSync') || 'Никогда'
+    };
+  };
+
+  // Синхронизация данных
+  const syncData = () => {
+    const now = new Date().toISOString();
+    localStorage.setItem('lastSync', now);
+    localStorage.setItem('habits', JSON.stringify(habits));
+    setDataLoadStatus('✅ Данные синхронизированы');
+  };
+
+  // Очистка данных
+  const clearData = () => {
+    if (window.confirm('Вы уверены, что хотите удалить все данные? Это действие нельзя отменить.')) {
+      localStorage.clear();
+      setHabits([]);
+      setDataLoadStatus('Данные очищены');
+    }
+  };
+
+  // Загружаем данные при первом запуске
+  useEffect(() => {
+    loadDefaultData();
+  }, []);
 
   // Сохранение привычек в localStorage
   useEffect(() => {
@@ -781,6 +861,9 @@ function App() {
             <button onClick={() => setShowStats(!showStats)} className="header-button">
               <BarChart3 size={18} />
             </button>
+            <button onClick={() => setShowStorageInfo(true)} className="header-button">
+              <Settings size={18} />
+            </button>
             <button onClick={() => setShowImportModal(true)} className="header-button">
               <Database size={18} />
             </button>
@@ -975,6 +1058,82 @@ function App() {
                   </button>
                   <button onClick={handleImport} className="add-button">
                     Импортировать
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно управления данными */}
+        {showStorageInfo && (
+          <div className="modal-overlay" onClick={() => setShowStorageInfo(false)}>
+            <div className="modal storage-modal" onClick={e => e.stopPropagation()}>
+              <h2>Управление данными</h2>
+              <div className="modal-form">
+                <div className="storage-info">
+                  <div className="info-section">
+                    <h4>📊 Статистика</h4>
+                    <div className="info-grid">
+                      <div className="info-item">
+                        <span className="info-label">Привычек:</span>
+                        <span className="info-value">{getStorageInfo().habitsCount}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Размер данных:</span>
+                        <span className="info-value">{getStorageInfo().totalSize} КБ</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Использовано:</span>
+                        <span className="info-value">{getStorageInfo().storageUsed}%</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Последняя синхронизация:</span>
+                        <span className="info-value">{getStorageInfo().lastSync}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="info-section">
+                    <h4>🔄 Статус загрузки</h4>
+                    <div className="load-status">
+                      {dataLoadStatus || 'Готов к загрузке'}
+                    </div>
+                  </div>
+
+                  <div className="info-section">
+                    <h4>💾 Где хранятся данные</h4>
+                    <div className="storage-details">
+                      <p><strong>Локальное хранилище браузера (localStorage)</strong></p>
+                      <ul>
+                        <li>Данные сохраняются автоматически</li>
+                        <li>Доступны только в этом браузере</li>
+                        <li>Максимум 5-10 МБ (зависит от браузера)</li>
+                        <li>Данные не передаются на сервер</li>
+                        <li>Можно экспортировать в любой момент</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="storage-actions">
+                  <button onClick={syncData} className="action-button sync">
+                    <Upload size={16} />
+                    Синхронизировать
+                  </button>
+                  <button onClick={exportData} className="action-button export">
+                    <Download size={16} />
+                    Экспортировать
+                  </button>
+                  <button onClick={clearData} className="action-button clear">
+                    <X size={16} />
+                    Очистить все
+                  </button>
+                </div>
+
+                <div className="modal-actions">
+                  <button onClick={() => setShowStorageInfo(false)} className="cancel-button">
+                    Закрыть
                   </button>
                 </div>
               </div>
