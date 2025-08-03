@@ -431,6 +431,218 @@ function App() {
     }
   };
 
+  // Импорт из Daylio
+  const importFromDaylio = (data) => {
+    try {
+      const lines = data.split('\n');
+      const importedHabits = [];
+      const moodHabit = {
+        id: Date.now() + Math.random(),
+        name: 'Настроение (Daylio)',
+        type: 'daily',
+        category: 'mood',
+        color: '#667eea',
+        target: 1,
+        unit: '',
+        reminderTime: '09:00',
+        completed: {},
+        values: {},
+        mood: {},
+        createdAt: new Date().toISOString(),
+        streak: 0,
+        bestStreak: 0,
+        totalCompletions: 0
+      };
+
+      // Парсим CSV Daylio
+      lines.forEach((line, index) => {
+        if (index === 0) return; // Пропускаем заголовок
+        
+        const columns = line.split(',');
+        if (columns.length >= 5) {
+          const date = columns[0].trim();
+          const mood = columns[4].trim();
+          
+          if (date && mood) {
+            const dateKey = format(parseISO(date), 'yyyy-MM-dd');
+            let moodValue = null;
+            
+            // Конвертируем настроения Daylio в числовые значения
+            switch (mood) {
+              case 'awful':
+                moodValue = 1;
+                break;
+              case 'bad':
+                moodValue = 2;
+                break;
+              case 'meh':
+                moodValue = 3;
+                break;
+              case 'good':
+                moodValue = 4;
+                break;
+              case 'rad':
+                moodValue = 5;
+                break;
+              default:
+                moodValue = null;
+            }
+            
+            if (moodValue !== null) {
+              moodHabit.mood[dateKey] = moodValue;
+            }
+          }
+        }
+      });
+
+      moodHabit.totalCompletions = Object.keys(moodHabit.mood).length;
+      importedHabits.push(moodHabit);
+
+      setHabits([...habits, ...importedHabits]);
+      setImportStatus(`Импортировано ${importedHabits.length} привычек из Daylio`);
+      return true;
+    } catch (error) {
+      setImportStatus('Ошибка при импорте из Daylio');
+      return false;
+    }
+  };
+
+  // Импорт из Habit Tracker
+  const importFromHabitTracker = (data) => {
+    try {
+      const lines = data.split('\n');
+      const importedHabits = [];
+      const habitMap = new Map();
+
+      // Парсим CSV Habit Tracker
+      lines.forEach((line, index) => {
+        if (index === 0) return; // Пропускаем заголовок
+        
+        const columns = line.split(',');
+        if (columns.length >= 3) {
+          const habitName = columns[0].trim();
+          const date = columns[1].trim();
+          const value = columns[2].trim();
+
+          if (!habitMap.has(habitName)) {
+            const habit = {
+              id: Date.now() + Math.random(),
+              name: habitName,
+              type: 'daily',
+              category: 'binary',
+              color: habitColors[Math.floor(Math.random() * habitColors.length)],
+              target: 1,
+              unit: '',
+              reminderTime: '09:00',
+              completed: {},
+              values: {},
+              mood: {},
+              createdAt: new Date().toISOString(),
+              streak: 0,
+              bestStreak: 0,
+              totalCompletions: 0
+            };
+            habitMap.set(habitName, habit);
+          }
+
+          const habit = habitMap.get(habitName);
+          const dateKey = format(parseISO(date), 'yyyy-MM-dd');
+          
+          if (value === '1') {
+            habit.completed[dateKey] = true;
+          }
+        }
+      });
+
+      // Добавляем привычки
+      habitMap.forEach(habit => {
+        habit.totalCompletions = Object.keys(habit.completed).length;
+        importedHabits.push(habit);
+      });
+
+      setHabits([...habits, ...importedHabits]);
+      setImportStatus(`Импортировано ${importedHabits.length} привычек из Habit Tracker`);
+      return true;
+    } catch (error) {
+      setImportStatus('Ошибка при импорте из Habit Tracker');
+      return false;
+    }
+  };
+
+  // Импорт из Way of Life
+  const importFromWayOfLife = (data) => {
+    try {
+      const lines = data.split('\n');
+      const importedHabits = [];
+      const habitMap = new Map();
+
+      // Парсим CSV Way of Life
+      lines.forEach((line, index) => {
+        if (index === 0) return; // Пропускаем заголовок
+        
+        const columns = line.split(',');
+        if (columns.length >= 2) {
+          const date = columns[0].trim();
+          
+          // Обрабатываем каждую привычку в строке
+          for (let i = 1; i < columns.length; i += 2) {
+            const habitName = columns[i]?.trim();
+            const value = columns[i + 1]?.trim();
+            
+            if (habitName && value && value !== '-') {
+              if (!habitMap.has(habitName)) {
+                const habit = {
+                  id: Date.now() + Math.random(),
+                  name: habitName,
+                  type: 'daily',
+                  category: 'binary',
+                  color: habitColors[Math.floor(Math.random() * habitColors.length)],
+                  target: 1,
+                  unit: '',
+                  reminderTime: '09:00',
+                  completed: {},
+                  values: {},
+                  mood: {},
+                  createdAt: new Date().toISOString(),
+                  streak: 0,
+                  bestStreak: 0,
+                  totalCompletions: 0
+                };
+                habitMap.set(habitName, habit);
+              }
+
+              const habit = habitMap.get(habitName);
+              
+              // Конвертируем дату из DD.MM.YYYY в YYYY-MM-DD
+              const dateParts = date.split('.');
+              if (dateParts.length === 3) {
+                const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                const dateKey = format(parseISO(formattedDate), 'yyyy-MM-dd');
+                
+                if (value === 'Green') {
+                  habit.completed[dateKey] = true;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Добавляем привычки
+      habitMap.forEach(habit => {
+        habit.totalCompletions = Object.keys(habit.completed).length;
+        importedHabits.push(habit);
+      });
+
+      setHabits([...habits, ...importedHabits]);
+      setImportStatus(`Импортировано ${importedHabits.length} привычек из Way of Life`);
+      return true;
+    } catch (error) {
+      setImportStatus('Ошибка при импорте из Way of Life');
+      return false;
+    }
+  };
+
   // Обработка импорта
   const handleImport = () => {
     setImportStatus('');
@@ -443,6 +655,15 @@ function App() {
     let success = false;
 
     switch (importSource) {
+      case 'daylio':
+        success = importFromDaylio(importData);
+        break;
+      case 'habit-tracker':
+        success = importFromHabitTracker(importData);
+        break;
+      case 'way-of-life':
+        success = importFromWayOfLife(importData);
+        break;
       case 'uhabits':
         success = importFromUHabits(importData);
         break;
@@ -712,6 +933,9 @@ function App() {
                     <option value="uhabits">uHabits</option>
                     <option value="loop">Loop Habit Tracker</option>
                     <option value="csv">CSV файл</option>
+                    <option value="daylio">Daylio</option>
+                    <option value="habit-tracker">Habit Tracker</option>
+                    <option value="way-of-life">Way of Life</option>
                   </select>
                 </div>
 
@@ -739,6 +963,9 @@ function App() {
                     <li><strong>Loop Habit Tracker:</strong> Используйте экспорт из Loop Habit Tracker</li>
                     <li><strong>CSV:</strong> Формат: привычка,дата,значение (заголовок обязателен)</li>
                     <li><strong>JSON:</strong> Собственный формат с массивом habits</li>
+                    <li><strong>Daylio:</strong> Экспортируйте данные из Daylio в CSV формате (заголовок, дата, привычка, значение, настроение)</li>
+                    <li><strong>Habit Tracker:</strong> Экспортируйте данные из Habit Tracker в CSV формате (заголовок, дата, значение)</li>
+                    <li><strong>Way of Life:</strong> Экспортируйте данные из Way of Life в CSV формате (дата, привычка1, значение1, привычка2, значение2, ...)</li>
                   </ul>
                 </div>
 
