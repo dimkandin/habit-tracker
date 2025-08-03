@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp } from 'lucide-react';
+import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun } from 'lucide-react';
 import './App.css';
 
 function App() {
@@ -18,11 +18,18 @@ function App() {
   const [habitColor, setHabitColor] = useState('#667eea');
   const [habitTarget, setHabitTarget] = useState(1);
   const [reminderTime, setReminderTime] = useState('09:00');
+  const [darkMode, setDarkMode] = useState(false);
+  const [compactView, setCompactView] = useState(true);
 
   // Сохранение привычек в localStorage
   useEffect(() => {
     localStorage.setItem('habits', JSON.stringify(habits));
   }, [habits]);
+
+  // Сохранение настроек темы
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
 
   // Генерация дней недели
   const weekDays = Array.from({ length: 7 }, (_, i) => 
@@ -193,40 +200,48 @@ function App() {
   ];
 
   return (
-    <div className="app">
+    <div className={`app ${darkMode ? 'dark' : ''}`}>
       <header className="header">
-        <h1>Трекер привычек</h1>
-        <p>Отслеживайте свои ежедневные привычки</p>
-        <div className="header-actions">
-          <button onClick={() => setShowStats(!showStats)} className="header-button">
-            <BarChart3 size={20} />
-            Статистика
-          </button>
-          <button onClick={exportData} className="header-button">
-            <Download size={20} />
-            Экспорт
-          </button>
-          <label className="header-button">
-            <Upload size={20} />
-            Импорт
-            <input
-              type="file"
-              accept=".json"
-              onChange={importData}
-              style={{ display: 'none' }}
-            />
-          </label>
+        <div className="header-content">
+          <div className="header-left">
+            <h1>Трекер привычек</h1>
+            <p>Минималистичный подход к отслеживанию</p>
+          </div>
+          <div className="header-actions">
+            <button 
+              onClick={() => setDarkMode(!darkMode)} 
+              className="theme-toggle"
+              title={darkMode ? 'Светлая тема' : 'Темная тема'}
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button onClick={() => setShowStats(!showStats)} className="header-button">
+              <BarChart3 size={18} />
+            </button>
+            <button onClick={exportData} className="header-button">
+              <Download size={18} />
+            </button>
+            <label className="header-button">
+              <Upload size={18} />
+              <input
+                type="file"
+                accept=".json"
+                onChange={importData}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
         </div>
       </header>
 
       <main className="main">
-        {/* Форма добавления привычки */}
+        {/* Компактная форма добавления */}
         <div className="add-habit-section">
           <button 
             onClick={() => setShowAddModal(true)}
             className="add-habit-button"
           >
-            <Plus size={20} />
+            <Plus size={16} />
             Добавить привычку
           </button>
         </div>
@@ -309,69 +324,68 @@ function App() {
           </div>
         )}
 
-        {/* Навигация по неделям */}
+        {/* Компактная навигация по неделям */}
         <div className="week-navigation">
           <button onClick={goToPreviousWeek} className="nav-button">
-            ← Предыдущая
+            ←
           </button>
           <div className="current-week">
             <span>
-              {format(currentWeek, 'd MMMM yyyy', { locale: ru })} - {format(addDays(currentWeek, 6), 'd MMMM yyyy', { locale: ru })}
+              {format(currentWeek, 'd MMM', { locale: ru })} - {format(addDays(currentWeek, 6), 'd MMM yyyy', { locale: ru })}
             </span>
             <button onClick={goToCurrentWeek} className="current-week-button">
               Сегодня
             </button>
           </div>
           <button onClick={goToNextWeek} className="nav-button">
-            Следующая →
+            →
           </button>
         </div>
 
         {/* Статистика */}
         {showStats && (
           <div className="stats-section">
-            <h3>Общая статистика</h3>
+            <h3>Статистика</h3>
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-number">{habits.length}</div>
-                <div className="stat-label">Всего привычек</div>
+                <div className="stat-label">Привычек</div>
               </div>
               <div className="stat-card">
                 <div className="stat-number">
                   {habits.reduce((sum, habit) => sum + habit.totalCompletions, 0)}
                 </div>
-                <div className="stat-label">Всего выполнений</div>
+                <div className="stat-label">Выполнений</div>
               </div>
               <div className="stat-card">
                 <div className="stat-number">
                   {habits.reduce((sum, habit) => sum + habit.streak, 0)}
                 </div>
-                <div className="stat-label">Текущая серия</div>
+                <div className="stat-label">Серия</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Список привычек */}
+        {/* Компактный список привычек */}
         <div className="habits-container">
           {habits.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📝</div>
               <h3>Нет привычек</h3>
-              <p>Добавьте свою первую привычку, чтобы начать отслеживание</p>
+              <p>Добавьте первую привычку для начала</p>
             </div>
           ) : (
-            <div className="habits-grid">
+            <div className="habits-grid compact">
               {habits.map(habit => {
                 const stats = getHabitStats(habit);
                 return (
-                  <div key={habit.id} className="habit-card" style={{ borderLeft: `4px solid ${habit.color}` }}>
-                    <div className="habit-header">
+                  <div key={habit.id} className="habit-card compact" style={{ borderLeft: `3px solid ${habit.color}` }}>
+                    <div className="habit-header compact">
                       <div className="habit-info">
                         <h3 className="habit-name">{habit.name}</h3>
                         <div className="habit-meta">
                           <span className="habit-type">{habit.type === 'daily' ? 'Ежедневная' : habit.type === 'weekly' ? 'Еженедельная' : 'Ежемесячная'}</span>
-                          <span className="habit-target">Цель: {habit.target}</span>
                         </div>
                       </div>
                       <button 
@@ -379,26 +393,26 @@ function App() {
                         className="remove-button"
                         title="Удалить привычку"
                       >
-                        <X size={16} />
+                        <X size={14} />
                       </button>
                     </div>
                     
                     <div className="habit-stats-mini">
                       <div className="stat-item">
-                        <TrendingUp size={16} />
-                        <span>{stats.streak} дн.</span>
+                        <TrendingUp size={14} />
+                        <span>{stats.streak}</span>
                       </div>
                       <div className="stat-item">
-                        <Target size={16} />
+                        <Target size={14} />
                         <span>{stats.completionRate}%</span>
                       </div>
                       <div className="stat-item">
-                        <Check size={16} />
+                        <Check size={14} />
                         <span>{stats.totalCompletions}</span>
                       </div>
                     </div>
                     
-                    <div className="habit-days">
+                    <div className="habit-days compact">
                       {weekDays.map(day => {
                         const dateKey = format(day, 'yyyy-MM-dd');
                         const isCompleted = habit.completed[dateKey];
@@ -407,9 +421,9 @@ function App() {
                         return (
                           <div 
                             key={day.toISOString()} 
-                            className={`day-cell ${isToday ? 'today' : ''} ${isCompleted ? 'completed' : ''}`}
+                            className={`day-cell compact ${isToday ? 'today' : ''} ${isCompleted ? 'completed' : ''}`}
                           >
-                            <div className="day-header">
+                            <div className="day-header compact">
                               <span className="day-name">
                                 {format(day, 'EEE', { locale: ru })}
                               </span>
@@ -419,11 +433,11 @@ function App() {
                             </div>
                             <button
                               onClick={() => toggleHabitCompletion(habit.id, day)}
-                              className={`completion-button ${isCompleted ? 'completed' : ''}`}
+                              className={`completion-button compact ${isCompleted ? 'completed' : ''}`}
                               style={{ borderColor: habit.color }}
                               title={isCompleted ? 'Отменить выполнение' : 'Отметить как выполненное'}
                             >
-                              {isCompleted ? <Check size={16} /> : <Minus size={16} />}
+                              {isCompleted ? <Check size={12} /> : <Minus size={12} />}
                             </button>
                           </div>
                         );
