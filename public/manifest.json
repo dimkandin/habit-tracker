@@ -1,0 +1,17 @@
+{
+  "short_name": "Трекер привычек",
+  "name": "Трекер привычек - Отслеживание ежедневных привычек",
+  "description": "Современное приложение для отслеживания ежедневных привычек с расширенным функционалом",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#667eea",
+  "background_color": "#667eea",
+  "orientation": "portrait-primary"
+} 
