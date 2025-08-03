@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun } from 'lucide-react';
+import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap } from 'lucide-react';
 import './App.css';
 
 function App() {
@@ -15,8 +15,10 @@ function App() {
   const [selectedHabit, setSelectedHabit] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [habitType, setHabitType] = useState('daily');
+  const [habitCategory, setHabitCategory] = useState('binary');
   const [habitColor, setHabitColor] = useState('#667eea');
   const [habitTarget, setHabitTarget] = useState(1);
+  const [habitUnit, setHabitUnit] = useState('');
   const [reminderTime, setReminderTime] = useState('09:00');
   const [darkMode, setDarkMode] = useState(false);
   const [compactView, setCompactView] = useState(true);
@@ -49,10 +51,14 @@ function App() {
         id: Date.now(),
         name: newHabit.trim(),
         type: habitType,
+        category: habitCategory,
         color: habitColor,
         target: habitTarget,
+        unit: habitUnit,
         reminderTime: reminderTime,
         completed: {},
+        values: {}, // Для количественных привычек
+        mood: {}, // Для привычек настроения
         createdAt: new Date().toISOString(),
         streak: 0,
         bestStreak: 0,
@@ -61,8 +67,10 @@ function App() {
       setHabits([...habits, habit]);
       setNewHabit('');
       setHabitType('daily');
+      setHabitCategory('binary');
       setHabitColor('#667eea');
       setHabitTarget(1);
+      setHabitUnit('');
       setReminderTime('09:00');
       setShowAddModal(false);
     }
@@ -103,10 +111,70 @@ function App() {
     }));
   };
 
+  // Обновление количественного значения
+  const updateQuantityValue = (habitId, date, value) => {
+    setHabits(habits.map(habit => {
+      if (habit.id === habitId) {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        const newValues = { ...habit.values };
+        
+        if (value === '' || value === 0) {
+          delete newValues[dateKey];
+        } else {
+          newValues[dateKey] = parseFloat(value);
+        }
+        
+        // Обновляем статистику
+        const totalCompletions = Object.keys(newValues).length;
+        const streak = calculateStreak(newValues);
+        const bestStreak = Math.max(habit.bestStreak, streak);
+        
+        return { 
+          ...habit, 
+          values: newValues,
+          totalCompletions,
+          streak,
+          bestStreak
+        };
+      }
+      return habit;
+    }));
+  };
+
+  // Обновление настроения
+  const updateMoodValue = (habitId, date, moodValue) => {
+    setHabits(habits.map(habit => {
+      if (habit.id === habitId) {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        const newMood = { ...habit.mood };
+        
+        if (moodValue === null) {
+          delete newMood[dateKey];
+        } else {
+          newMood[dateKey] = moodValue;
+        }
+        
+        // Обновляем статистику
+        const totalCompletions = Object.keys(newMood).length;
+        const streak = calculateStreak(newMood);
+        const bestStreak = Math.max(habit.bestStreak, streak);
+        
+        return { 
+          ...habit, 
+          mood: newMood,
+          totalCompletions,
+          streak,
+          bestStreak
+        };
+      }
+      return habit;
+    }));
+  };
+
   // Расчет серии выполнения
-  const calculateStreak = (completed) => {
-    const sortedDates = Object.keys(completed)
-      .filter(date => completed[date])
+  const calculateStreak = (data) => {
+    const sortedDates = Object.keys(data)
+      .filter(date => data[date])
       .sort()
       .reverse();
     
@@ -133,7 +201,19 @@ function App() {
   // Получение статистики привычки
   const getHabitStats = (habit) => {
     const totalDays = differenceInDays(new Date(), new Date(habit.createdAt)) + 1;
-    const completionRate = totalDays > 0 ? Math.round((habit.totalCompletions / totalDays) * 100) : 0;
+    let completionRate = 0;
+    
+    if (habit.category === 'binary') {
+      completionRate = totalDays > 0 ? Math.round((habit.totalCompletions / totalDays) * 100) : 0;
+    } else if (habit.category === 'quantity') {
+      const totalValue = Object.values(habit.values || {}).reduce((sum, val) => sum + val, 0);
+      const targetValue = habit.target * totalDays;
+      completionRate = targetValue > 0 ? Math.round((totalValue / targetValue) * 100) : 0;
+    } else if (habit.category === 'mood') {
+      const moodValues = Object.values(habit.mood || {});
+      const avgMood = moodValues.length > 0 ? moodValues.reduce((sum, val) => sum + val, 0) / moodValues.length : 0;
+      completionRate = Math.round(avgMood * 20); // Преобразуем 1-5 в проценты
+    }
     
     return {
       totalDays,
@@ -142,6 +222,49 @@ function App() {
       bestStreak: habit.bestStreak,
       totalCompletions: habit.totalCompletions
     };
+  };
+
+  // Получение значения привычки для конкретного дня
+  const getHabitValue = (habit, date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    
+    if (habit.category === 'binary') {
+      return habit.completed[dateKey] || false;
+    } else if (habit.category === 'quantity') {
+      return habit.values[dateKey] || 0;
+    } else if (habit.category === 'mood') {
+      return habit.mood[dateKey] || null;
+    }
+    
+    return false;
+  };
+
+  // Получение иконки для категории
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'binary':
+        return <Check size={14} />;
+      case 'quantity':
+        return <Activity size={14} />;
+      case 'mood':
+        return <Smile size={14} />;
+      default:
+        return <Zap size={14} />;
+    }
+  };
+
+  // Получение названия категории
+  const getCategoryName = (category) => {
+    switch (category) {
+      case 'binary':
+        return 'Бинарная';
+      case 'quantity':
+        return 'Количественная';
+      case 'mood':
+        return 'Настроение';
+      default:
+        return 'Другая';
+    }
   };
 
   // Экспорт данных
@@ -197,6 +320,15 @@ function App() {
   const habitColors = [
     '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe',
     '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#a8edea', '#fed6e3'
+  ];
+
+  // Настроения
+  const moodOptions = [
+    { value: 1, label: '😢', color: '#ef4444' },
+    { value: 2, label: '😕', color: '#f97316' },
+    { value: 3, label: '😐', color: '#eab308' },
+    { value: 4, label: '🙂', color: '#22c55e' },
+    { value: 5, label: '😊', color: '#10b981' }
   ];
 
   return (
@@ -264,6 +396,19 @@ function App() {
                 </div>
                 
                 <div className="form-group">
+                  <label>Категория привычки</label>
+                  <select 
+                    value={habitCategory} 
+                    onChange={(e) => setHabitCategory(e.target.value)}
+                    className="habit-select"
+                  >
+                    <option value="binary">Бинарная (да/нет)</option>
+                    <option value="quantity">Количественная</option>
+                    <option value="mood">Настроение</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label>Тип привычки</label>
                   <select 
                     value={habitType} 
@@ -274,6 +419,30 @@ function App() {
                     <option value="weekly">Еженедельная</option>
                     <option value="monthly">Ежемесячная</option>
                   </select>
+                </div>
+
+                {habitCategory === 'quantity' && (
+                  <div className="form-group">
+                    <label>Единица измерения</label>
+                    <input
+                      type="text"
+                      value={habitUnit}
+                      onChange={(e) => setHabitUnit(e.target.value)}
+                      placeholder="шт, км, мин, кг..."
+                      className="habit-input"
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Цель (раз в {habitType === 'daily' ? 'день' : habitType === 'weekly' ? 'неделю' : 'месяц'})</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={habitTarget}
+                    onChange={(e) => setHabitTarget(parseInt(e.target.value))}
+                    className="habit-input"
+                  />
                 </div>
 
                 <div className="form-group">
@@ -288,17 +457,6 @@ function App() {
                       />
                     ))}
                   </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Цель (раз в {habitType === 'daily' ? 'день' : habitType === 'weekly' ? 'неделю' : 'месяц'})</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={habitTarget}
-                    onChange={(e) => setHabitTarget(parseInt(e.target.value))}
-                    className="habit-input"
-                  />
                 </div>
 
                 <div className="form-group">
@@ -385,6 +543,10 @@ function App() {
                       <div className="habit-info">
                         <h3 className="habit-name">{habit.name}</h3>
                         <div className="habit-meta">
+                          <span className="habit-category">
+                            {getCategoryIcon(habit.category)}
+                            {getCategoryName(habit.category)}
+                          </span>
                           <span className="habit-type">{habit.type === 'daily' ? 'Ежедневная' : habit.type === 'weekly' ? 'Еженедельная' : 'Ежемесячная'}</span>
                         </div>
                       </div>
@@ -415,13 +577,13 @@ function App() {
                     <div className="habit-days compact">
                       {weekDays.map(day => {
                         const dateKey = format(day, 'yyyy-MM-dd');
-                        const isCompleted = habit.completed[dateKey];
                         const isToday = isSameDay(day, new Date());
+                        const habitValue = getHabitValue(habit, day);
                         
                         return (
                           <div 
                             key={day.toISOString()} 
-                            className={`day-cell compact ${isToday ? 'today' : ''} ${isCompleted ? 'completed' : ''}`}
+                            className={`day-cell compact ${isToday ? 'today' : ''} ${habitValue ? 'completed' : ''}`}
                           >
                             <div className="day-header compact">
                               <span className="day-name">
@@ -431,14 +593,48 @@ function App() {
                                 {format(day, 'd')}
                               </span>
                             </div>
-                            <button
-                              onClick={() => toggleHabitCompletion(habit.id, day)}
-                              className={`completion-button compact ${isCompleted ? 'completed' : ''}`}
-                              style={{ borderColor: habit.color }}
-                              title={isCompleted ? 'Отменить выполнение' : 'Отметить как выполненное'}
-                            >
-                              {isCompleted ? <Check size={12} /> : <Minus size={12} />}
-                            </button>
+                            
+                            {habit.category === 'binary' && (
+                              <button
+                                onClick={() => toggleHabitCompletion(habit.id, day)}
+                                className={`completion-button compact ${habitValue ? 'completed' : ''}`}
+                                style={{ borderColor: habit.color }}
+                                title={habitValue ? 'Отменить выполнение' : 'Отметить как выполненное'}
+                              >
+                                {habitValue ? <Check size={12} /> : <Minus size={12} />}
+                              </button>
+                            )}
+                            
+                            {habit.category === 'quantity' && (
+                              <div className="quantity-input-container">
+                                <input
+                                  type="number"
+                                  value={habitValue || ''}
+                                  onChange={(e) => updateQuantityValue(habit.id, day, e.target.value)}
+                                  className="quantity-input"
+                                  placeholder="0"
+                                  min="0"
+                                  step="0.1"
+                                />
+                                {habit.unit && <span className="unit-label">{habit.unit}</span>}
+                              </div>
+                            )}
+                            
+                            {habit.category === 'mood' && (
+                              <div className="mood-selector">
+                                {moodOptions.map(mood => (
+                                  <button
+                                    key={mood.value}
+                                    onClick={() => updateMoodValue(habit.id, day, habitValue === mood.value ? null : mood.value)}
+                                    className={`mood-button ${habitValue === mood.value ? 'selected' : ''}`}
+                                    style={{ backgroundColor: habitValue === mood.value ? mood.color : 'transparent' }}
+                                    title={`Настроение ${mood.value}/5`}
+                                  >
+                                    {mood.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
