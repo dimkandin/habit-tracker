@@ -7,12 +7,6 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const habitRoutes = require('./routes/habits');
 const syncRoutes = require('./routes/sync');
-const { 
-  connectDB, 
-  createTables, 
-  createSQLiteDB, 
-  createSQLiteTables 
-} = require('./config/database');
 
 const productionConfig = require('./config/production');
 
@@ -86,6 +80,9 @@ const startServer = async () => {
       // Production: только PostgreSQL
       console.log('🚀 Запуск в production режиме (Railway)');
       
+      // Динамически импортируем только PostgreSQL модули
+      const { connectDB, createTables } = require('./config/database');
+      
       let postgresAvailable = false;
       if (process.env.DB_HOST) {
         try {
@@ -102,12 +99,20 @@ const startServer = async () => {
       app.listen(PORT, () => {
         console.log(`🚀 Сервер запущен на порту ${PORT}`);
         console.log(`📊 Режим: production`);
-        console.log(`🔗 API: https://habit-tracker-api.railway.app`);
+        console.log(`🔗 API: https://habit-tracker-production-b372.up.railway.app`);
         console.log(`💾 База данных: ${postgresAvailable ? 'PostgreSQL' : 'недоступна'}`);
       });
     } else {
       // Development: SQLite + PostgreSQL
       console.log('🚀 Запуск в development режиме');
+      
+      // Динамически импортируем все модули
+      const { 
+        connectDB, 
+        createTables, 
+        createSQLiteDB, 
+        createSQLiteTables 
+      } = require('./config/database');
       
       // Инициализация SQLite (локальная база)
       const sqliteDB = await createSQLiteDB();
