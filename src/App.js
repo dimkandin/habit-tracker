@@ -7,13 +7,21 @@ import './App.css';
 // Регистрация Service Worker для PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/habit-tracker/sw.js')
-      .then((registration) => {
-        console.log('SW registered: ', registration);
-      })
-      .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
-      });
+    // Сначала удаляем старые Service Workers
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for(let registration of registrations) {
+        registration.unregister();
+      }
+    }).then(() => {
+      // Регистрируем новый Service Worker
+      return navigator.serviceWorker.register('/habit-tracker/sw.js');
+    }).then((registration) => {
+      console.log('SW registered successfully: ', registration);
+      // Принудительно обновляем Service Worker
+      registration.update();
+    }).catch((registrationError) => {
+      console.log('SW registration failed: ', registrationError);
+    });
   });
 }
 
