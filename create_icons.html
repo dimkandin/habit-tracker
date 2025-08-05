@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas192" width="192" height="192"></canvas>
+    <canvas id="canvas512" width="512" height="512"></canvas>
+    <script>
+        function createIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Фон
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Белый прямоугольник
+            ctx.fillStyle = 'white';
+            const margin = size * 0.2;
+            const rectSize = size - 2 * margin;
+            ctx.fillRect(margin, margin, rectSize, rectSize);
+            
+            // Сетка календаря
+            ctx.fillStyle = '#667eea';
+            const gridSize = rectSize / 4;
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const x = margin + i * gridSize + gridSize * 0.1;
+                    const y = margin + j * gridSize + gridSize * 0.1;
+                    const cellSize = gridSize * 0.8;
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                }
+            }
+            
+            // Галочка в первой ячейке
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = size * 0.02;
+            ctx.beginPath();
+            ctx.moveTo(margin + gridSize * 0.3, margin + gridSize * 0.6);
+            ctx.lineTo(margin + gridSize * 0.5, margin + gridSize * 0.8);
+            ctx.lineTo(margin + gridSize * 0.7, margin + gridSize * 0.4);
+            ctx.stroke();
+        }
+        
+        createIcon('canvas192', 192);
+        createIcon('canvas512', 512);
+        
+        // Сохранить как PNG
+        function downloadCanvas(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Автоматически скачать иконки
+        setTimeout(() => {
+            downloadCanvas('canvas192', 'logo192.png');
+            downloadCanvas('canvas512', 'logo512.png');
+        }, 1000);
+    </script>
+</body>
+</html> 
