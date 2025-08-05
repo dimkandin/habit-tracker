@@ -1,17 +1,44 @@
 {
-  "short_name": "Трекер привычек",
-  "name": "Трекер привычек - Отслеживание ежедневных привычек",
-  "description": "Современное приложение для отслеживания ежедневных привычек с расширенным функционалом",
+  "short_name": "Habit Tracker",
+  "name": "Habit Tracker - Трекер привычек",
+  "description": "Приложение для отслеживания привычек с поддержкой категорий и статистики",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#667eea",
-  "background_color": "#667eea",
-  "orientation": "portrait-primary"
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "ru",
+  "categories": ["productivity", "lifestyle", "health"],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot2.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
 } 

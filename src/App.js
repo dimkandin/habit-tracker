@@ -4,6 +4,19 @@ import { ru } from 'date-fns/locale';
 import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap, FileText, Database } from 'lucide-react';
 import './App.css';
 
+// Регистрация Service Worker для PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('SW registered: ', registration);
+      })
+      .catch((registrationError) => {
+        console.log('SW registration failed: ', registrationError);
+      });
+  });
+}
+
 function App() {
   const [habits, setHabits] = useState(() => {
     const saved = localStorage.getItem('habits');
@@ -28,6 +41,39 @@ function App() {
   const [importStatus, setImportStatus] = useState('');
   const [showStorageInfo, setShowStorageInfo] = useState(false);
   const [dataLoadStatus, setDataLoadStatus] = useState('');
+  const [compactMode, setCompactMode] = useState(true);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  // Запрос разрешений на уведомления
+  useEffect(() => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // Обработка события установки PWA
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    });
+  }, []);
+
+  // Функция установки PWA
+  const installPWA = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstallPrompt(false);
+      }
+      setDeferredPrompt(null);
+    }
+  };
 
   // Автоматическая загрузка данных из файлов
   const loadDefaultData = async () => {
@@ -851,6 +897,11 @@ function App() {
             <p>Минималистичный подход к отслеживанию</p>
           </div>
           <div className="header-actions">
+            {showInstallPrompt && (
+              <button onClick={installPWA} className="header-button install-pwa" title="Установить приложение">
+                📱
+              </button>
+            )}
             <button 
               onClick={() => setDarkMode(!darkMode)} 
               className="theme-toggle"
