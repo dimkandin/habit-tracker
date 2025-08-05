@@ -1,32 +1,39 @@
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
+const sqlitePath = path.join(__dirname, '../data/habits.db');
 
 // Получить все привычки пользователя
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        `SELECT h.*, 
-                COALESCE(hc.completed, false) as completed,
-                hv.value as quantity_value,
-                hm.mood_value
-         FROM habits h
-         LEFT JOIN habit_completions hc ON h.id = hc.habit_id AND hc.date = CURRENT_DATE
-         LEFT JOIN habit_values hv ON h.id = hv.habit_id AND hv.date = CURRENT_DATE
-         LEFT JOIN habit_moods hm ON h.id = hm.habit_id AND hm.date = CURRENT_DATE
-         WHERE h.user_id = $1
-         ORDER BY h.created_at DESC`,
-        [req.user.id]
-      );
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const getHabits = () => {
+      return new Promise((resolve, reject) => {
+        db.all(`
+          SELECT h.*, 
+                 COALESCE(hc.completed, 0) as completed,
+                 hv.value as quantity_value,
+                 hm.mood_value
+          FROM habits h
+          LEFT JOIN habit_completions hc ON h.id = hc.habit_id AND hc.date = date('now')
+          LEFT JOIN habit_values hv ON h.id = hv.habit_id AND hv.date = date('now')
+          LEFT JOIN habit_moods hm ON h.id = hm.habit_id AND hm.date = date('now')
+          WHERE h.user_id = ?
+          ORDER BY h.created_at DESC
+        `, [req.user.id], (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+    };
 
-      res.json(result.rows);
-    } finally {
-      client.release();
-    }
+    const habits = await getHabits();
+    res.json(habits);
   } catch (error) {
     console.error('Ошибка получения привычек:', error);
     res.status(500).json({ error: 'Ошибка при получении привычек' });
@@ -36,25 +43,40 @@ router.get('/', authenticateToken, async (req, res) => {
 // Создать новую привычку
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { name, description, category, unit, target } = req.body;
+    const { name, description, category, unit, target, color, type } = req.body;
 
     if (!name || !category) {
       return res.status(400).json({ error: 'Название и категория обязательны' });
     }
 
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        `INSERT INTO habits (user_id, name, description, category, unit, target)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *`,
-        [req.user.id, name, description, category, unit, target]
-      );
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const createHabit = () => {
+      return new Promise((resolve, reject) => {
+        db.run(`
+          INSERT INTO habits (user_id, name, description, category, unit, target, color, type)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [req.user.id, name, description, category, unit, target || 1, color || '#667eea', type || 'daily'], function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        });
+      });
+    };
 
-      res.status(201).json(result.rows[0]);
-    } finally {
-      client.release();
-    }
+    const habitId = await createHabit();
+    
+    // Получаем созданную привычку
+    const getHabit = () => {
+      return new Promise((resolve, reject) => {
+        db.get('SELECT * FROM habits WHERE id = ?', [habitId], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+    };
+
+    const habit = await getHabit();
+    res.status(201).json(habit);
   } catch (error) {
     console.error('Ошибка создания привычки:', error);
     res.status(500).json({ error: 'Ошибка при создании привычки' });
@@ -65,26 +87,30 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, category, unit, target } = req.body;
+    const { name, description, category, unit, target, color, type } = req.body;
 
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        `UPDATE habits 
-         SET name = $1, description = $2, category = $3, unit = $4, target = $5, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $6 AND user_id = $7
-         RETURNING *`,
-        [name, description, category, unit, target, id, req.user.id]
-      );
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const updateHabit = () => {
+      return new Promise((resolve, reject) => {
+        db.run(`
+          UPDATE habits 
+          SET name = ?, description = ?, category = ?, unit = ?, target = ?, color = ?, type = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND user_id = ?
+        `, [name, description, category, unit, target, color, type, id, req.user.id], function(err) {
+          if (err) reject(err);
+          else resolve(this.changes > 0);
+        });
+      });
+    };
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Привычка не найдена' });
-      }
-
-      res.json(result.rows[0]);
-    } finally {
-      client.release();
+    const updated = await updateHabit();
+    
+    if (!updated) {
+      return res.status(404).json({ error: 'Привычка не найдена' });
     }
+
+    res.json({ message: 'Привычка обновлена' });
   } catch (error) {
     console.error('Ошибка обновления привычки:', error);
     res.status(500).json({ error: 'Ошибка при обновлении привычки' });
@@ -95,22 +121,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const deleteHabit = () => {
+      return new Promise((resolve, reject) => {
+        db.run('DELETE FROM habits WHERE id = ? AND user_id = ?', [id, req.user.id], function(err) {
+          if (err) reject(err);
+          else resolve(this.changes > 0);
+        });
+      });
+    };
 
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        'DELETE FROM habits WHERE id = $1 AND user_id = $2 RETURNING id',
-        [id, req.user.id]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Привычка не найдена' });
-      }
-
-      res.json({ message: 'Привычка удалена' });
-    } finally {
-      client.release();
+    const deleted = await deleteHabit();
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Привычка не найдена' });
     }
+
+    res.json({ message: 'Привычка удалена' });
   } catch (error) {
     console.error('Ошибка удаления привычки:', error);
     res.status(500).json({ error: 'Ошибка при удалении привычки' });
@@ -121,37 +149,24 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.post('/:id/completion', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { completed, date = new Date().toISOString().split('T')[0] } = req.body;
+    const { date, completed } = req.body;
 
-    const client = await pool.connect();
-    try {
-      // Проверяем, что привычка принадлежит пользователю и является бинарной
-      const habitCheck = await client.query(
-        'SELECT category FROM habits WHERE id = $1 AND user_id = $2',
-        [id, req.user.id]
-      );
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const toggleCompletion = () => {
+      return new Promise((resolve, reject) => {
+        db.run(`
+          INSERT OR REPLACE INTO habit_completions (habit_id, date, completed, updated_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `, [id, date, completed ? 1 : 0], function(err) {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    };
 
-      if (habitCheck.rows.length === 0) {
-        return res.status(404).json({ error: 'Привычка не найдена' });
-      }
-
-      if (habitCheck.rows[0].category !== 'binary') {
-        return res.status(400).json({ error: 'Эта привычка не является бинарной' });
-      }
-
-      // Обновляем или создаем запись о выполнении
-      await client.query(
-        `INSERT INTO habit_completions (habit_id, date, completed)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (habit_id, date)
-         DO UPDATE SET completed = $3, updated_at = CURRENT_TIMESTAMP`,
-        [id, date, completed]
-      );
-
-      res.json({ message: 'Выполнение обновлено' });
-    } finally {
-      client.release();
-    }
+    await toggleCompletion();
+    res.json({ message: 'Выполнение обновлено' });
   } catch (error) {
     console.error('Ошибка обновления выполнения:', error);
     res.status(500).json({ error: 'Ошибка при обновлении выполнения' });
@@ -162,37 +177,24 @@ router.post('/:id/completion', authenticateToken, async (req, res) => {
 router.post('/:id/value', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { value, date = new Date().toISOString().split('T')[0] } = req.body;
+    const { date, value } = req.body;
 
-    const client = await pool.connect();
-    try {
-      // Проверяем, что привычка принадлежит пользователю и является количественной
-      const habitCheck = await client.query(
-        'SELECT category FROM habits WHERE id = $1 AND user_id = $2',
-        [id, req.user.id]
-      );
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const updateValue = () => {
+      return new Promise((resolve, reject) => {
+        db.run(`
+          INSERT OR REPLACE INTO habit_values (habit_id, date, value, updated_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `, [id, date, value], function(err) {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    };
 
-      if (habitCheck.rows.length === 0) {
-        return res.status(404).json({ error: 'Привычка не найдена' });
-      }
-
-      if (habitCheck.rows[0].category !== 'quantity') {
-        return res.status(400).json({ error: 'Эта привычка не является количественной' });
-      }
-
-      // Обновляем или создаем запись о значении
-      await client.query(
-        `INSERT INTO habit_values (habit_id, date, value)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (habit_id, date)
-         DO UPDATE SET value = $3, updated_at = CURRENT_TIMESTAMP`,
-        [id, date, value]
-      );
-
-      res.json({ message: 'Значение обновлено' });
-    } finally {
-      client.release();
-    }
+    await updateValue();
+    res.json({ message: 'Значение обновлено' });
   } catch (error) {
     console.error('Ошибка обновления значения:', error);
     res.status(500).json({ error: 'Ошибка при обновлении значения' });
@@ -203,37 +205,24 @@ router.post('/:id/value', authenticateToken, async (req, res) => {
 router.post('/:id/mood', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { mood_value, date = new Date().toISOString().split('T')[0] } = req.body;
+    const { date, moodValue } = req.body;
 
-    const client = await pool.connect();
-    try {
-      // Проверяем, что привычка принадлежит пользователю и является настроением
-      const habitCheck = await client.query(
-        'SELECT category FROM habits WHERE id = $1 AND user_id = $2',
-        [id, req.user.id]
-      );
+    const db = new sqlite3.Database(sqlitePath);
+    
+    const updateMood = () => {
+      return new Promise((resolve, reject) => {
+        db.run(`
+          INSERT OR REPLACE INTO habit_moods (habit_id, date, mood_value, updated_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `, [id, date, moodValue], function(err) {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    };
 
-      if (habitCheck.rows.length === 0) {
-        return res.status(404).json({ error: 'Привычка не найдена' });
-      }
-
-      if (habitCheck.rows[0].category !== 'mood') {
-        return res.status(400).json({ error: 'Эта привычка не является настроением' });
-      }
-
-      // Обновляем или создаем запись о настроении
-      await client.query(
-        `INSERT INTO habit_moods (habit_id, date, mood_value)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (habit_id, date)
-         DO UPDATE SET mood_value = $3, updated_at = CURRENT_TIMESTAMP`,
-        [id, date, mood_value]
-      );
-
-      res.json({ message: 'Настроение обновлено' });
-    } finally {
-      client.release();
-    }
+    await updateMood();
+    res.json({ message: 'Настроение обновлено' });
   } catch (error) {
     console.error('Ошибка обновления настроения:', error);
     res.status(500).json({ error: 'Ошибка при обновлении настроения' });
