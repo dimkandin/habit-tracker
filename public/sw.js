@@ -1,10 +1,10 @@
 const CACHE_NAME = 'habit-tracker-v1';
 const urlsToCache = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json',
-  '/favicon.ico'
+  '/habit-tracker/',
+  '/habit-tracker/static/js/bundle.js',
+  '/habit-tracker/static/css/main.css',
+  '/habit-tracker/manifest.json',
+  '/habit-tracker/favicon.ico'
 ];
 
 // Установка Service Worker
@@ -71,8 +71,8 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   const options = {
     body: 'Не забудьте отметить свои привычки!',
-    icon: '/logo192.png',
-    badge: '/logo192.png',
+    icon: '/habit-tracker/logo192.png',
+    badge: '/habit-tracker/logo192.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
@@ -82,12 +82,12 @@ self.addEventListener('push', (event) => {
       {
         action: 'explore',
         title: 'Открыть приложение',
-        icon: '/logo192.png'
+        icon: '/habit-tracker/logo192.png'
       },
       {
         action: 'close',
         title: 'Закрыть',
-        icon: '/logo192.png'
+        icon: '/habit-tracker/logo192.png'
       }
     ]
   };
@@ -103,7 +103,7 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'explore') {
     event.waitUntil(
-      clients.openWindow('/')
+      clients.openWindow('/habit-tracker/')
     );
   }
 }); 
