@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap, FileText, Database } from 'lucide-react';
+import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap, FileText, Database, Wifi, WifiOff, Cloud, CloudOff, User } from 'lucide-react';
 import './App.css';
+import Auth from './components/Auth';
+import { api } from './config/api';
 
 // Регистрация Service Worker для PWA
 if ('serviceWorker' in navigator) {
@@ -52,6 +54,49 @@ function App() {
   const [compactMode, setCompactMode] = useState(true);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  
+  // Состояния для аутентификации и API
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [apiStatus, setApiStatus] = useState('checking');
+  const [syncStatus, setSyncStatus] = useState('idle');
+
+  // Проверка аутентификации и API при загрузке
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      const userData = localStorage.getItem('userData');
+      
+      if (token && userData) {
+        setAuthToken(token);
+        setUser(JSON.parse(userData));
+        setIsAuthenticated(true);
+      }
+      
+      // Проверка статуса API
+      try {
+        const health = await api.health();
+        if (health.status === 'OK') {
+          setApiStatus('online');
+        } else if (health.status === 'disabled') {
+          setApiStatus('disabled');
+        } else {
+          setApiStatus('offline');
+        }
+      } catch (error) {
+        setApiStatus('offline');
+      }
+      
+      // Показываем аутентификацию если API доступен и пользователь не авторизован
+      if (api.enabled && !token) {
+        setShowAuth(true);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Запрос разрешений на уведомления
   useEffect(() => {
@@ -94,6 +139,71 @@ function App() {
       }
       setDeferredPrompt(null);
     }
+  };
+
+  // Функции аутентификации
+  const handleAuthSuccess = (authData) => {
+    setAuthToken(authData.token);
+    setUser(authData.user);
+    setIsAuthenticated(true);
+    setShowAuth(false);
+    console.log('✅ Аутентификация успешна:', authData.user);
+    
+    // Синхронизируем данные с сервером
+    syncWithServer();
+  };
+
+  const handleAuthSkip = () => {
+    setShowAuth(false);
+    console.log('⏭️ Аутентификация пропущена, работаем офлайн');
+  };
+
+  const logout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    setAuthToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    console.log('👋 Выход из аккаунта');
+  };
+
+  // Синхронизация с сервером
+  const syncWithServer = async () => {
+    if (!api.enabled || !authToken) return;
+    
+    setSyncStatus('syncing');
+    try {
+      // Получаем привычки с сервера
+      const serverHabits = await api.getHabits(authToken);
+      
+      // Объединяем с локальными данными
+      const localHabits = habits;
+      const mergedHabits = mergeHabits(localHabits, serverHabits);
+      
+      // Обновляем локальное состояние
+      setHabits(mergedHabits);
+      localStorage.setItem('habits', JSON.stringify(mergedHabits));
+      
+      setSyncStatus('success');
+      console.log('✅ Синхронизация завершена');
+    } catch (error) {
+      setSyncStatus('error');
+      console.error('❌ Ошибка синхронизации:', error);
+    }
+  };
+
+  // Функция объединения привычек (приоритет серверным данным)
+  const mergeHabits = (local, server) => {
+    const merged = [...server];
+    
+    // Добавляем локальные привычки, которых нет на сервере
+    local.forEach(localHabit => {
+      if (!server.find(serverHabit => serverHabit.id === localHabit.id)) {
+        merged.push(localHabit);
+      }
+    });
+    
+    return merged;
   };
 
   // Автоматическая загрузка данных из файлов
@@ -196,7 +306,7 @@ function App() {
   });
 
   // Добавление новой привычки
-  const addHabit = () => {
+  const addHabit = async () => {
     if (newHabit.trim()) {
       const habit = {
         id: Date.now(),
@@ -215,7 +325,21 @@ function App() {
         bestStreak: 0,
         totalCompletions: 0
       };
-      setHabits([...habits, habit]);
+      
+      // Добавляем локально
+      const newHabits = [...habits, habit];
+      setHabits(newHabits);
+      
+      // Синхронизируем с сервером если авторизованы
+      if (api.enabled && authToken) {
+        try {
+          await api.createHabit(habit, authToken);
+          console.log('✅ Привычка синхронизирована с сервером');
+        } catch (error) {
+          console.error('❌ Ошибка синхронизации привычки:', error);
+        }
+      }
+      
       setNewHabit('');
       setHabitType('daily');
       setHabitCategory('binary');
@@ -911,6 +1035,56 @@ function App() {
 
   return (
     <div className={`app ${darkMode ? 'dark' : ''}`}>
+      {/* Статус API */}
+      <div className={`api-status ${apiStatus}`}>
+        {apiStatus === 'online' && (
+          <>
+            <Wifi size={12} />
+            Онлайн
+            {isAuthenticated && user && (
+              <span> | {user.name}</span>
+            )}
+          </>
+        )}
+        {apiStatus === 'offline' && (
+          <>
+            <WifiOff size={12} />
+            Офлайн
+          </>
+        )}
+        {apiStatus === 'disabled' && (
+          <>
+            <CloudOff size={12} />
+            Локально
+          </>
+        )}
+        {apiStatus === 'checking' && (
+          <>
+            <div className="loading-spinner" style={{width: '12px', height: '12px'}}></div>
+            Проверка...
+          </>
+        )}
+        {syncStatus === 'syncing' && (
+          <>
+            <Cloud size={12} />
+            Синхронизация...
+          </>
+        )}
+        {isAuthenticated && (
+          <button onClick={logout} style={{marginLeft: '8px', fontSize: '10px'}}>
+            Выйти
+          </button>
+        )}
+      </div>
+
+      {/* Модальное окно аутентификации */}
+      {showAuth && (
+        <Auth
+          onAuthSuccess={handleAuthSuccess}
+          onSkip={handleAuthSkip}
+        />
+      )}
+
       <header className="header">
         <div className="header-content">
           <div className="header-left">
@@ -938,6 +1112,15 @@ function App() {
             >
               🔧
             </button>
+            {api.enabled && !isAuthenticated && (
+              <button 
+                onClick={() => setShowAuth(true)} 
+                className="header-button"
+                title="Войти в аккаунт"
+              >
+                <User size={18} />
+              </button>
+            )}
             <button 
               onClick={() => setDarkMode(!darkMode)} 
               className="theme-toggle"

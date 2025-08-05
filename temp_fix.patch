@@ -1,0 +1,1 @@
+      postgresql: (process.env.PGHOST || process.env.DB_HOST) ? 'configured' : 'not configured'

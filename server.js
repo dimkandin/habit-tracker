@@ -11,7 +11,7 @@ const syncRoutes = require('./routes/sync');
 const productionConfig = require('./config/production');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 8080;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Middleware
@@ -40,7 +40,8 @@ app.get('/api/health', (req, res) => {
       postgresql: (process.env.PGHOST || process.env.DB_HOST) ? 'configured' : 'not configured'
     },
     platform: 'Railway',
-    version: '1.0.0'
+    version: '1.0.0',
+    port: PORT
   });
 });
 
@@ -50,6 +51,7 @@ app.get('/', (req, res) => {
     message: 'Habit Tracker API',
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
+    port: PORT,
     endpoints: {
       health: '/api/health',
       auth: '/api/auth',
@@ -107,7 +109,7 @@ const startServer = async () => {
       app.listen(PORT, () => {
         console.log(`🚀 Сервер запущен на порту ${PORT}`);
         console.log(`📊 Режим: production`);
-        console.log(`🔗 API: https://habit-tracker-production-b372.up.railway.app`);
+        console.log(`🔗 API: https://habit-tracker-backend-production-d3e2.up.railway.app`);
         console.log(`💾 База данных: ${postgresAvailable ? 'PostgreSQL' : 'недоступна'}`);
       });
     } else {
@@ -128,7 +130,7 @@ const startServer = async () => {
       
       // Попытка подключения к PostgreSQL (облачная база)
       let postgresAvailable = false;
-      if (process.env.PGHOST || process.env.DB_HOST) {
+      if (process.env.DB_HOST) {
         try {
           await connectDB();
           await createTables();

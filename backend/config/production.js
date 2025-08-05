@@ -1,10 +1,10 @@
 module.exports = {
   database: {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    host: process.env.PGHOST || process.env.DB_HOST,
+    port: process.env.PGPORT || process.env.DB_PORT || 5432,
+    database: process.env.PGDATABASE || process.env.DB_NAME,
+    user: process.env.PGUSER || process.env.DB_USER,
+    password: process.env.PGPASSWORD || process.env.DB_PASSWORD,
     ssl: { rejectUnauthorized: false }
   },
   cors: {
@@ -16,7 +16,7 @@ module.exports = {
     credentials: true
   },
   server: {
-    port: process.env.PORT || 5000,
+    port: process.env.PORT || 8080,
     environment: 'production'
   }
 }; 
