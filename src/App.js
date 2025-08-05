@@ -57,10 +57,23 @@ function App() {
   // Обработка события установки PWA
   useEffect(() => {
     window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('PWA: beforeinstallprompt event fired');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallPrompt(true);
     });
+
+    // Проверяем, установлено ли уже приложение
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      console.log('PWA: App is already installed');
+    }
+
+    // Проверяем регистрацию Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        console.log('PWA: Service Worker registrations:', registrations);
+      });
+    }
   }, []);
 
   // Функция установки PWA
@@ -902,6 +915,21 @@ function App() {
                 📱
               </button>
             )}
+            <button 
+              onClick={() => {
+                console.log('PWA Debug Info:');
+                console.log('- Service Worker:', 'serviceWorker' in navigator);
+                console.log('- Standalone mode:', window.matchMedia('(display-mode: standalone)').matches);
+                console.log('- Manifest:', document.querySelector('link[rel="manifest"]')?.href);
+                console.log('- Deferred prompt:', !!deferredPrompt);
+                console.log('- Show install prompt:', showInstallPrompt);
+              }} 
+              className="header-button debug-pwa" 
+              title="Отладка PWA"
+              style={{fontSize: '12px'}}
+            >
+              🔧
+            </button>
             <button 
               onClick={() => setDarkMode(!darkMode)} 
               className="theme-toggle"
