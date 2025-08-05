@@ -4,6 +4,8 @@ import { ru } from 'date-fns/locale';
 import { Plus, X, Check, Minus, Target, BarChart3, Settings, Download, Upload, Bell, Calendar, TrendingUp, Moon, Sun, Smile, Activity, Zap, FileText, Database, Wifi, WifiOff, Cloud, CloudOff, User } from 'lucide-react';
 import './App.css';
 import Auth from './components/Auth';
+import LoopHabitCard from './components/LoopHabitCard';
+import HabitStrength from './components/HabitStrength';
 import { api } from './config/api';
 
 // Регистрация Service Worker для PWA
@@ -62,6 +64,7 @@ function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [apiStatus, setApiStatus] = useState('checking');
   const [syncStatus, setSyncStatus] = useState('idle');
+  const [useLoopStyle, setUseLoopStyle] = useState(true);
 
   // Проверка аутентификации и API при загрузке
   useEffect(() => {
@@ -204,6 +207,105 @@ function App() {
     });
     
     return merged;
+  };
+
+  // Новые функции для LoopHabitCard
+  const toggleHabit = async (habitId, dateKey, completed) => {
+    const newHabits = habits.map(habit => {
+      if (habit.id === habitId) {
+        const newCompleted = { ...habit.completed };
+        if (completed) {
+          newCompleted[dateKey] = true;
+        } else {
+          delete newCompleted[dateKey];
+        }
+        
+        // Обновляем статистику
+        const totalCompletions = Object.keys(newCompleted).length;
+        const streak = calculateStreak(newCompleted);
+        const bestStreak = Math.max(habit.bestStreak, streak);
+        
+        return { 
+          ...habit, 
+          completed: newCompleted,
+          totalCompletions,
+          streak,
+          bestStreak
+        };
+      }
+      return habit;
+    });
+    
+    setHabits(newHabits);
+    
+    // Синхронизируем с сервером если авторизованы
+    if (api.enabled && authToken) {
+      try {
+        await api.toggleCompletion(habitId, dateKey, completed, authToken);
+      } catch (error) {
+        console.error('❌ Ошибка синхронизации выполнения:', error);
+      }
+    }
+  };
+
+  const setValue = async (habitId, dateKey, value) => {
+    const newHabits = habits.map(habit => {
+      if (habit.id === habitId) {
+        const newValues = { ...habit.values };
+        if (value > 0) {
+          newValues[dateKey] = value;
+        } else {
+          delete newValues[dateKey];
+        }
+        
+        return { 
+          ...habit, 
+          values: newValues
+        };
+      }
+      return habit;
+    });
+    
+    setHabits(newHabits);
+    
+    // Синхронизируем с сервером если авторизованы
+    if (api.enabled && authToken) {
+      try {
+        await api.setValue(habitId, dateKey, value, authToken);
+      } catch (error) {
+        console.error('❌ Ошибка синхронизации значения:', error);
+      }
+    }
+  };
+
+  const setMood = async (habitId, dateKey, moodValue) => {
+    const newHabits = habits.map(habit => {
+      if (habit.id === habitId) {
+        const newMood = { ...habit.mood };
+        if (moodValue >= 1 && moodValue <= 5) {
+          newMood[dateKey] = moodValue;
+        } else {
+          delete newMood[dateKey];
+        }
+        
+        return { 
+          ...habit, 
+          mood: newMood
+        };
+      }
+      return habit;
+    });
+    
+    setHabits(newHabits);
+    
+    // Синхронизируем с сервером если авторизованы
+    if (api.enabled && authToken) {
+      try {
+        await api.setMood(habitId, dateKey, moodValue, authToken);
+      } catch (error) {
+        console.error('❌ Ошибка синхронизации настроения:', error);
+      }
+    }
   };
 
   // Автоматическая загрузка данных из файлов
@@ -1122,6 +1224,13 @@ function App() {
               </button>
             )}
             <button 
+              onClick={() => setUseLoopStyle(!useLoopStyle)} 
+              className="header-button"
+              title={useLoopStyle ? 'Компактный стиль' : 'Loop стиль'}
+            >
+              {useLoopStyle ? '📱' : '🎨'}
+            </button>
+            <button 
               onClick={() => setDarkMode(!darkMode)} 
               className="theme-toggle"
               title={darkMode ? 'Светлая тема' : 'Темная тема'}
@@ -1462,6 +1571,20 @@ function App() {
               <h3>Нет привычек</h3>
               <p>Добавьте первую привычку для начала</p>
             </div>
+          ) : useLoopStyle ? (
+            <div className="habits-grid loop-style">
+              {habits.map(habit => (
+                <LoopHabitCard
+                  key={habit.id}
+                  habit={habit}
+                  currentWeek={currentWeek}
+                  onToggleHabit={toggleHabit}
+                  onSetValue={setValue}
+                  onSetMood={setMood}
+                  onRemove={removeHabit}
+                />
+              ))}
+            </div>
           ) : (
             <div className="habits-grid compact">
               {habits.map(habit => {
@@ -1567,6 +1690,17 @@ function App() {
           )}
         </div>
       </main>
+
+      {/* FAB кнопка добавления привычки в стиле Loop */}
+      {useLoopStyle && (
+        <button 
+          className="add-habit-fab"
+          onClick={() => setShowAddModal(true)}
+          title="Добавить привычку"
+        >
+          <Plus size={24} />
+        </button>
+      )}
     </div>
   );
 }

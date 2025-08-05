@@ -1,3 +1,20 @@
+/* Loop-inspired color scheme */
+:root {
+  --loop-primary: #5e72e4;
+  --loop-primary-hover: #4c63d2;
+  --loop-success: #2dce89;
+  --loop-warning: #fb8c00;
+  --loop-error: #f5365c;
+  --loop-text-primary: #212529;
+  --loop-text-secondary: #6c757d;
+  --loop-bg-primary: #f8f9fe;
+  --loop-bg-secondary: #ffffff;
+  --loop-border: #dee2e6;
+  --loop-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+  --loop-radius: 12px;
+  --loop-radius-sm: 8px;
+}
+
 /* Темная тема */
 .app.dark {
   --bg-primary: #1a1a1a;
@@ -1210,6 +1227,209 @@
   background: rgba(156, 163, 175, 0.1);
   color: #9ca3af;
   border: 1px solid rgba(156, 163, 175, 0.2);
+}
+
+/* Loop-inspired habit card styles */
+.loop-habit-card {
+  background: var(--loop-bg-secondary);
+  border-radius: var(--loop-radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--loop-shadow);
+  border: 1px solid var(--loop-border);
+  transition: all 0.2s ease;
+}
+
+.loop-habit-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2);
+}
+
+.habit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.habit-info .habit-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--loop-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.habit-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--loop-text-secondary);
+}
+
+.habit-category {
+  background: rgba(94, 114, 228, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--loop-radius-sm);
+  font-weight: 500;
+}
+
+.current-streak {
+  background: rgba(45, 206, 137, 0.1);
+  color: var(--loop-success);
+  padding: 2px 8px;
+  border-radius: var(--loop-radius-sm);
+  font-weight: 500;
+}
+
+.remove-habit-btn {
+  background: none;
+  border: none;
+  color: var(--loop-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--loop-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.remove-habit-btn:hover {
+  background: rgba(245, 54, 92, 0.1);
+  color: var(--loop-error);
+}
+
+.habit-strength-section {
+  margin-bottom: 16px;
+}
+
+.habit-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.loop-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-radius: var(--loop-radius-sm);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  min-height: 60px;
+}
+
+.loop-day-cell:hover {
+  background: rgba(94, 114, 228, 0.05);
+}
+
+.loop-day-cell.today {
+  background: rgba(94, 114, 228, 0.1);
+  border: 1px solid var(--loop-primary);
+}
+
+.day-header {
+  text-align: center;
+  font-size: 11px;
+}
+
+.day-name {
+  color: var(--loop-text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.day-number {
+  color: var(--loop-text-primary);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.day-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #e9ecef;
+  transition: all 0.2s ease;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+}
+
+.day-indicator:hover {
+  transform: scale(1.1);
+}
+
+.loop-day-cell.completed .day-indicator {
+  border-color: transparent;
+}
+
+.quantity-value {
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.mood-emoji {
+  font-size: 12px;
+}
+
+/* Habit strength component */
+.habit-strength {
+  width: 100%;
+}
+
+.habit-strength.small .strength-info {
+  font-size: 11px;
+}
+
+/* Improved main layout */
+.habits-grid.loop-style {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Header improvements */
+.header-loop-style {
+  background: var(--loop-bg-secondary);
+  border-bottom: 1px solid var(--loop-border);
+  box-shadow: var(--loop-shadow);
+}
+
+.header-loop-style .header-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Add habit button in Loop style */
+.add-habit-fab {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--loop-primary);
+  color: white;
+  border: none;
+  box-shadow: var(--loop-shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.add-habit-fab:hover {
+  background: var(--loop-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.3);
 }
 
 @media (display-mode: standalone) {
