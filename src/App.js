@@ -353,21 +353,21 @@ function App() {
   const toggleHabit = async (habitId, dateKey, completed) => {
     const newHabits = habits.map(habit => {
       if (habit.id === habitId) {
-        const newCompleted = { ...habit.completed };
+        const newCompletions = { ...habit.completions };
         if (completed) {
-          newCompleted[dateKey] = true;
+          newCompletions[dateKey] = true;
         } else {
-          delete newCompleted[dateKey];
+          delete newCompletions[dateKey];
         }
         
         // Обновляем статистику
-        const totalCompletions = Object.keys(newCompleted).length;
-        const streak = calculateStreak(newCompleted);
-        const bestStreak = Math.max(habit.bestStreak, streak);
+        const totalCompletions = Object.keys(newCompletions).length;
+        const streak = calculateStreak(newCompletions);
+        const bestStreak = Math.max(habit.bestStreak || 0, streak);
         
         return { 
           ...habit, 
-          completed: newCompleted,
+          completions: newCompletions,
           totalCompletions,
           streak,
           bestStreak
@@ -381,10 +381,14 @@ function App() {
     // Синхронизируем с сервером если авторизованы
     if (api.enabled && authToken) {
       try {
+        console.log('🔄 Синхронизируем выполнение:', { habitId, dateKey, completed });
         await api.toggleCompletion(habitId, dateKey, completed, authToken);
+        console.log('✅ Выполнение синхронизировано');
       } catch (error) {
         console.error('❌ Ошибка синхронизации выполнения:', error);
       }
+    } else {
+      console.log('⏭️ Синхронизация пропущена:', { apiEnabled: api.enabled, hasToken: !!authToken });
     }
   };
 
@@ -421,16 +425,16 @@ function App() {
   const setMood = async (habitId, dateKey, moodValue) => {
     const newHabits = habits.map(habit => {
       if (habit.id === habitId) {
-        const newMood = { ...habit.mood };
+        const newMoods = { ...habit.moods };
         if (moodValue >= 1 && moodValue <= 5) {
-          newMood[dateKey] = moodValue;
+          newMoods[dateKey] = moodValue;
         } else {
-          delete newMood[dateKey];
+          delete newMoods[dateKey];
         }
         
         return { 
           ...habit, 
-          mood: newMood
+          moods: newMoods
         };
       }
       return habit;
@@ -603,22 +607,22 @@ function App() {
     setHabits(habits.map(habit => {
       if (habit.id === habitId) {
         const dateKey = format(date, 'yyyy-MM-dd');
-        const newCompleted = { ...habit.completed };
+        const newCompletions = { ...habit.completions };
         
-        if (newCompleted[dateKey]) {
-          delete newCompleted[dateKey];
+        if (newCompletions[dateKey]) {
+          delete newCompletions[dateKey];
         } else {
-          newCompleted[dateKey] = true;
+          newCompletions[dateKey] = true;
         }
         
         // Обновляем статистику
-        const totalCompletions = Object.keys(newCompleted).length;
-        const streak = calculateStreak(newCompleted);
-        const bestStreak = Math.max(habit.bestStreak, streak);
+        const totalCompletions = Object.keys(newCompletions).length;
+        const streak = calculateStreak(newCompletions);
+        const bestStreak = Math.max(habit.bestStreak || 0, streak);
         
         return { 
           ...habit, 
-          completed: newCompleted,
+          completions: newCompletions,
           totalCompletions,
           streak,
           bestStreak
@@ -746,11 +750,11 @@ function App() {
     const dateKey = format(date, 'yyyy-MM-dd');
     
     if (habit.category === 'binary') {
-      return habit.completed[dateKey] || false;
+      return habit.completions[dateKey] || false;
     } else if (habit.category === 'quantity') {
       return habit.values[dateKey] || 0;
     } else if (habit.category === 'mood') {
-      return habit.mood[dateKey] || null;
+      return habit.moods[dateKey] || null;
     }
     
     return false;
@@ -815,12 +819,12 @@ function App() {
             uhabit.entries.forEach(entry => {
               const dateKey = format(parseISO(entry.date), 'yyyy-MM-dd');
               if (entry.value > 0) {
-                habit.completed[dateKey] = true;
+                habit.completions[dateKey] = true;
               }
             });
           }
 
-          habit.totalCompletions = Object.keys(habit.completed).length;
+          habit.totalCompletions = Object.keys(habit.completions).length;
           importedHabits.push(habit);
         });
       }
@@ -864,11 +868,11 @@ function App() {
           if (loopHabit.repetitions) {
             loopHabit.repetitions.forEach(rep => {
               const dateKey = format(parseISO(rep.timestamp), 'yyyy-MM-dd');
-              habit.completed[dateKey] = true;
+              habit.completions[dateKey] = true;
             });
           }
 
-          habit.totalCompletions = Object.keys(habit.completed).length;
+          habit.totalCompletions = Object.keys(habit.completions).length;
           importedHabits.push(habit);
         });
       }
@@ -924,14 +928,14 @@ function App() {
           const dateKey = format(parseISO(date), 'yyyy-MM-dd');
           
           if (value === 'true' || value === '1' || value === 'yes') {
-            habit.completed[dateKey] = true;
+            habit.completions[dateKey] = true;
           }
         }
       });
 
       // Добавляем привычки
       habitMap.forEach(habit => {
-        habit.totalCompletions = Object.keys(habit.completed).length;
+        habit.totalCompletions = Object.keys(habit.completions).length;
         importedHabits.push(habit);
       });
 
@@ -1062,14 +1066,14 @@ function App() {
           const dateKey = format(parseISO(date), 'yyyy-MM-dd');
           
           if (value === '1') {
-            habit.completed[dateKey] = true;
+            habit.completions[dateKey] = true;
           }
         }
       });
 
       // Добавляем привычки
       habitMap.forEach(habit => {
-        habit.totalCompletions = Object.keys(habit.completed).length;
+        habit.totalCompletions = Object.keys(habit.completions).length;
         importedHabits.push(habit);
       });
 
@@ -1133,7 +1137,7 @@ function App() {
                 const dateKey = format(parseISO(formattedDate), 'yyyy-MM-dd');
                 
                 if (value === 'Green') {
-                  habit.completed[dateKey] = true;
+                  habit.completions[dateKey] = true;
                 }
               }
             }
@@ -1143,7 +1147,7 @@ function App() {
 
       // Добавляем привычки
       habitMap.forEach(habit => {
-        habit.totalCompletions = Object.keys(habit.completed).length;
+        habit.totalCompletions = Object.keys(habit.completions).length;
         importedHabits.push(habit);
       });
 
