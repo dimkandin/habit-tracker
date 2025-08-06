@@ -6,6 +6,7 @@ import './App.css';
 import Auth from './components/Auth';
 import LoopHabitCard from './components/LoopHabitCard';
 import HabitStrength from './components/HabitStrength';
+import UserProfile from './components/UserProfile';
 import { api } from './config/api';
 
 // Регистрация Service Worker для PWA
@@ -65,6 +66,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState('checking');
   const [syncStatus, setSyncStatus] = useState('idle');
   const [useLoopStyle, setUseLoopStyle] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
 
   // Проверка аутентификации и API при загрузке
   useEffect(() => {
@@ -1214,13 +1216,14 @@ function App() {
             >
               🔧
             </button>
-            {api.enabled && !isAuthenticated && (
+            {api.enabled && (
               <button 
-                onClick={() => setShowAuth(true)} 
+                onClick={() => isAuthenticated ? setShowProfile(true) : setShowAuth(true)} 
                 className="header-button"
-                title="Войти в аккаунт"
+                title={isAuthenticated ? `Профиль (${user?.name || user?.email})` : "Войти в аккаунт"}
               >
                 <User size={18} />
+                {isAuthenticated && <div className="auth-indicator"></div>}
               </button>
             )}
             <button 
@@ -1700,6 +1703,24 @@ function App() {
         >
           <Plus size={24} />
         </button>
+      )}
+
+      {/* Модальное окно авторизации */}
+      {showAuth && (
+        <Auth 
+          onAuthSuccess={handleAuthSuccess}
+          onSkip={handleAuthSkip}
+        />
+      )}
+
+      {/* Профиль пользователя */}
+      {showProfile && isAuthenticated && (
+        <UserProfile
+          user={user}
+          habits={habits}
+          onLogout={logout}
+          onClose={() => setShowProfile(false)}
+        />
       )}
     </div>
   );

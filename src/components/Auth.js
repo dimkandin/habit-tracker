@@ -51,11 +51,14 @@ const Auth = ({ onAuthSuccess, onSkip }) => {
     <div className="auth-overlay">
       <div className="auth-container">
         <div className="auth-header">
-          <h2>{isLogin ? 'Вход в аккаунт' : 'Регистрация'}</h2>
+          <div className="auth-icon">
+            {isLogin ? <LogIn size={32} /> : <UserPlus size={32} />}
+          </div>
+          <h2>{isLogin ? 'Добро пожаловать!' : 'Создайте аккаунт'}</h2>
           <p>
             {isLogin 
               ? 'Войдите для синхронизации ваших привычек между устройствами'
-              : 'Создайте аккаунт для сохранения данных в облаке'
+              : 'Зарегистрируйтесь и получите доступ к своим привычкам с любого устройства'
             }
           </p>
         </div>
