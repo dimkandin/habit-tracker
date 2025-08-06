@@ -3,7 +3,7 @@ const API_CONFIG = {
   // Локальный development сервер
   development: {
     baseURL: 'http://localhost:5000/api',
-    enabled: false // пока отключен
+    enabled: true // включен для тестирования
   },
   // Production Railway API
   production: {
@@ -51,24 +51,58 @@ export const api = {
   // Аутентификация
   async register(email, password, name) {
     if (!this.enabled) throw new Error('API отключен');
-    const response = await fetch(`${this.baseURL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name })
-    });
-    if (!response.ok) throw new Error('Ошибка регистрации');
-    return await response.json();
+    try {
+      const response = await fetch(`${this.baseURL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name })
+      });
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Сервер недоступен или вернул неверный формат данных');
+      }
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка регистрации');
+      }
+      
+      return data;
+    } catch (error) {
+      if (error.name === 'TypeError' || error.message.includes('Failed to fetch')) {
+        throw new Error('Не удается подключиться к серверу');
+      }
+      throw error;
+    }
   },
 
   async login(email, password) {
     if (!this.enabled) throw new Error('API отключен');
-    const response = await fetch(`${this.baseURL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    if (!response.ok) throw new Error('Ошибка входа');
-    return await response.json();
+    try {
+      const response = await fetch(`${this.baseURL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Сервер недоступен или вернул неверный формат данных');
+      }
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка входа');
+      }
+      
+      return data;
+    } catch (error) {
+      if (error.name === 'TypeError' || error.message.includes('Failed to fetch')) {
+        throw new Error('Не удается подключиться к серверу');
+      }
+      throw error;
+    }
   },
 
   // Привычки
