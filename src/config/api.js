@@ -115,6 +115,33 @@ export const api = {
     return await response.json();
   },
 
+  async getCompletions(token) {
+    if (!this.enabled) return [];
+    const response = await fetch(`${this.baseURL}/habits/completions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Ошибка получения выполнений');
+    return await response.json();
+  },
+
+  async getValues(token) {
+    if (!this.enabled) return [];
+    const response = await fetch(`${this.baseURL}/habits/values`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Ошибка получения значений');
+    return await response.json();
+  },
+
+  async getMoods(token) {
+    if (!this.enabled) return [];
+    const response = await fetch(`${this.baseURL}/habits/moods`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Ошибка получения настроений');
+    return await response.json();
+  },
+
   async createHabit(habit, token) {
     if (!this.enabled) throw new Error('API отключен');
     const response = await fetch(`${this.baseURL}/habits`, {

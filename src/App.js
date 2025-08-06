@@ -103,6 +103,144 @@ function App() {
     checkAuth();
   }, []);
 
+  // Загрузка привычек после аутентификации (простая версия)
+  useEffect(() => {
+    const loadHabits = async () => {
+      console.log('🔍 Проверка условий загрузки:', {
+        apiEnabled: api.enabled,
+        hasToken: !!authToken,
+        isAuthenticated,
+        tokenPreview: authToken ? authToken.substring(0, 10) + '...' : 'нет'
+      });
+      
+      if (!api.enabled || !authToken || !isAuthenticated) {
+        console.log('⏭️ Пропускаем загрузку - условия не выполнены');
+        // Загружаем локальные данные
+        const localHabitsData = localStorage.getItem('habits');
+        if (localHabitsData) {
+          const localHabits = JSON.parse(localHabitsData);
+          console.log('📱 Загружены локальные данные:', localHabits.length, 'привычек');
+          setHabits(localHabits);
+        }
+        return;
+      }
+      
+      console.log('🔄 Загружаем привычки с сервера...');
+      try {
+        // Загружаем только привычки (как раньше работало)
+        const serverHabits = await api.getHabits(authToken);
+        console.log('📥 Получены привычки с сервера:', serverHabits.length);
+        
+        // Загружаем локальные данные
+        const localHabitsData = localStorage.getItem('habits');
+        const localHabits = localHabitsData ? JSON.parse(localHabitsData) : [];
+        console.log('📱 Локальные привычки:', localHabits.length);
+        
+        // Приоритет серверным данным
+        const mergedHabits = serverHabits.length > 0 ? serverHabits : localHabits;
+        
+        setHabits(mergedHabits);
+        localStorage.setItem('habits', JSON.stringify(mergedHabits));
+        
+        console.log('✅ Привычки загружены:', mergedHabits.length);
+        
+        // Дополнительно загружаем статусы (если привычки есть)
+        if (mergedHabits.length > 0) {
+          await loadHabitStatuses(mergedHabits);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки привычек:', error);
+        console.error('❌ Детали ошибки:', {
+          message: error.message,
+          authToken: authToken ? 'есть' : 'нет',
+          apiBaseURL: api.baseURL
+        });
+        
+        // Fallback на локальные данные
+        const localHabitsData = localStorage.getItem('habits');
+        if (localHabitsData) {
+          const localHabits = JSON.parse(localHabitsData);
+          console.log('📱 Fallback: загружены локальные данные:', localHabits.length, 'привычек');
+          setHabits(localHabits);
+        } else {
+          console.log('📱 Нет локальных данных');
+        }
+      }
+    };
+    
+    // Функция для загрузки статусов привычек
+    const loadHabitStatuses = async (habits) => {
+      try {
+        console.log('🔄 Загружаем статусы привычек...');
+        
+        // Загружаем статусы параллельно
+        const [completions, values, moods] = await Promise.all([
+          api.getCompletions(authToken).catch(err => {
+            console.warn('⚠️ Не удалось загрузить completions:', err.message);
+            return [];
+          }),
+          api.getValues(authToken).catch(err => {
+            console.warn('⚠️ Не удалось загрузить values:', err.message);
+            return [];
+          }),
+          api.getMoods(authToken).catch(err => {
+            console.warn('⚠️ Не удалось загрузить moods:', err.message);
+            return [];
+          })
+        ]);
+        
+        console.log('📥 Получены статусы:', {
+          completions: completions.length,
+          values: values.length,
+          moods: moods.length
+        });
+        
+        // Применяем статусы к привычкам
+        const habitsWithStatuses = habits.map(habit => {
+          const habitCompletions = completions.filter(c => c.habit_id == habit.id);
+          const habitValues = values.filter(v => v.habit_id == habit.id);
+          const habitMoods = moods.filter(m => m.habit_id == habit.id);
+          
+          // Создаем карты для быстрого поиска
+          const completionsMap = {};
+          const valuesMap = {};
+          const moodsMap = {};
+          
+          habitCompletions.forEach(c => {
+            completionsMap[c.date] = c.completed;
+          });
+          
+          habitValues.forEach(v => {
+            valuesMap[v.date] = v.value;
+          });
+          
+          habitMoods.forEach(m => {
+            moodsMap[m.date] = m.mood;
+          });
+          
+          // Обновляем привычку с статусами
+          return {
+            ...habit,
+            completions: completionsMap,
+            values: valuesMap,
+            moods: moodsMap
+          };
+        });
+        
+        // Обновляем состояние с статусами
+        setHabits(habitsWithStatuses);
+        localStorage.setItem('habits', JSON.stringify(habitsWithStatuses));
+        
+        console.log('✅ Статусы привычек загружены и применены');
+      } catch (error) {
+        console.warn('⚠️ Ошибка загрузки статусов (не критично):', error.message);
+        // Статусы не критичны - оставляем привычки без статусов
+      }
+    };
+    
+    loadHabits();
+  }, [authToken, isAuthenticated]);
+
   // Запрос разрешений на уведомления
   useEffect(() => {
     if ('Notification' in window) {
