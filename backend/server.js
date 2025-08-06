@@ -40,8 +40,37 @@ app.get('/api/health', (req, res) => {
       postgresql: (process.env.PGHOST || process.env.DB_HOST) ? 'configured' : 'not configured'
     },
     platform: 'Railway',
-    version: '1.0.0'
+    version: '1.0.0',
+    jwt_secret: process.env.JWT_SECRET ? 'configured' : 'missing'
   });
+});
+
+// Debug endpoint для проверки таблиц
+app.get('/api/debug/tables', async (req, res) => {
+  try {
+    if (isProduction) {
+      const { pool } = require('./config/database');
+      const client = await pool.connect();
+      try {
+        const result = await client.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public'
+        `);
+        res.json({ 
+          tables: result.rows,
+          message: 'PostgreSQL tables'
+        });
+      } finally {
+        client.release();
+      }
+    } else {
+      res.json({ message: 'Debug endpoint только для production' });
+    }
+  } catch (error) {
+    console.error('Ошибка проверки таблиц:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Root endpoint для Railway
